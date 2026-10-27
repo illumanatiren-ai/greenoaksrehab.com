@@ -7,9 +7,9 @@ import { useCart } from "./CartProvider";
 import { totals } from "./cartMath";
 import { money, type Product } from "@/lib/products";
 
-type Props = { products: Product[]; currency: string; flatCents: number; freeOverCents: number; clientId: string };
+type Props = { products: Product[]; currency: string; flatCents: number; freeOverCents: number; clientId: string; demo?: boolean };
 
-export default function CheckoutClient({ products, currency, flatCents, freeOverCents, clientId }: Props) {
+export default function CheckoutClient({ products, currency, flatCents, freeOverCents, clientId, demo = false }: Props) {
   const router = useRouter();
   const { items, clear, ready } = useCart();
   const [agree, setAgree] = useState(false);
@@ -55,8 +55,9 @@ export default function CheckoutClient({ products, currency, flatCents, freeOver
       <div>
         <h2>Pay securely</h2>
         <p className="muted">
-          Payment is processed by PayPal. You can pay with your PayPal balance or a debit/credit card. We never see or store your card details.
-          {t.needsShipping ? " PayPal will ask for your shipping address." : ""}
+          {demo ? "This is a demonstration checkout. No payment is taken and no card or account details are needed." : "Payment is processed by PayPal."}
+          {demo ? null : <> You can pay with your PayPal balance or a debit/credit card. We never see or store your card details.
+          {t.needsShipping ? " PayPal will ask for your shipping address." : ""}</>}
         </p>
         <label className="check" htmlFor="agree-terms">
           <input id="agree-terms" type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
@@ -66,43 +67,58 @@ export default function CheckoutClient({ products, currency, flatCents, freeOver
           </span>
         </label>
 
-        <PayPalScriptProvider options={{ clientId, currency, intent: "capture" }}>
-          <PayPalButtons
-            style={{ layout: "vertical", shape: "rect" }}
+        {demo ? (
+          <button
+            type="button"
+            className="btn"
             disabled={!agree}
-            forceReRender={[agree, items, currency]}
-            createOrder={async () => {
-              setError("");
-              const res = await fetch("/api/paypal/create-order", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ items: items.map((i) => ({ id: i.id, qty: i.qty })) }),
-              });
-              const data = await res.json().catch(() => ({}));
-              if (!res.ok || !data.id) {
-                setError("We could not start your checkout. Please try again, or contact us.");
-                throw new Error("create-order failed");
-              }
-              return data.id as string;
+            onClick={() => {
+              const ref = "GO-" + Math.floor(100000 + Math.random() * 900000);
+              clear();
+              router.push(`/order-complete?ref=${ref}&demo=1`);
             }}
-            onApprove={async (data) => {
-              const res = await fetch("/api/paypal/capture-order", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderID: data.orderID }),
-              });
-              const out = await res.json().catch(() => ({}));
-              if (res.ok && out.ok) {
-                clear();
-                router.push(`/order-complete?ref=${encodeURIComponent(out.ref)}`);
-              } else {
-                setError(out.error || "Your payment could not be completed. You have not been charged unless PayPal tells you otherwise.");
-              }
-            }}
-            onError={() => setError((e) => e || "PayPal reported a problem. Please try again.")}
-          />
-        </PayPalScriptProvider>
-        {!agree && <p className="muted" style={{ fontSize: ".88rem" }}>Tick the box above to enable the payment buttons.</p>}
+          >
+            Proceed to checkout
+          </button>
+        ) : (
+          <PayPalScriptProvider options={{ clientId, currency, intent: "capture" }}>
+            <PayPalButtons
+              style={{ layout: "vertical", shape: "rect" }}
+              disabled={!agree}
+              forceReRender={[agree, items, currency]}
+              createOrder={async () => {
+                setError("");
+                const res = await fetch("/api/paypal/create-order", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ items: items.map((i) => ({ id: i.id, qty: i.qty })) }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.id) {
+                  setError("We could not start your checkout. Please try again, or contact us.");
+                  throw new Error("create-order failed");
+                }
+                return data.id as string;
+              }}
+              onApprove={async (data) => {
+                const res = await fetch("/api/paypal/capture-order", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ orderID: data.orderID }),
+                });
+                const out = await res.json().catch(() => ({}));
+                if (res.ok && out.ok) {
+                  clear();
+                  router.push(`/order-complete?ref=${encodeURIComponent(out.ref)}`);
+                } else {
+                  setError(out.error || "Your payment could not be completed. You have not been charged unless PayPal tells you otherwise.");
+                }
+              }}
+              onError={() => setError((e) => e || "PayPal reported a problem. Please try again.")}
+            />
+          </PayPalScriptProvider>
+        )}
+        {!agree && <p className="muted" style={{ fontSize: ".88rem" }}>Tick the box above to enable checkout.</p>}
         <div role="alert">{error && <div className="msg err">{error}</div>}</div>
       </div>
     </div>
