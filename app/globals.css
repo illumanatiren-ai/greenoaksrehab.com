@@ -102,3 +102,10 @@ footer.site .legalline { border-top: 1px solid #3f6451; margin-top: 30px; paddin
 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .legal table.cart code { font-size: .85em; }
+
+/* Order confirmation */
+.confirm { text-align: center; padding: 24px 0 8px; }
+.confirm .tick { width: 76px; height: 76px; margin: 0 auto 18px; color: var(--green); }
+.confirm h1 { margin-bottom: .3em; }
+.confirm .ref { font-size: 1.15rem; }
+.confirm .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
